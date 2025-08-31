@@ -3,19 +3,16 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      // expo-router को लागि
-      require.resolve("expo-router/babel"),
-      // module resolver plugin
+      // यो राख्नु जरुरी भए (optional)
       [
         "module-resolver",
         {
           root: ["./"],
           alias: {
-            "@": "./src",   // optional shortcut imports
+            "@": "./src",
           },
         },
       ],
-      'react-native-reanimated/plugin',
     ],
   };
 };
