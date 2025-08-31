@@ -1,110 +1,288 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Image } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 
-import { Collapsible } from '@/components/Collapsible';
-import { ExternalLink } from '@/components/ExternalLink';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+import { db } from '@/firebase';
+import { User, Post } from '@/types';
+import { RootStackParamList } from '@/navigation/types';
+import { useTheme } from 'react-native-paper';
 
-export default function TabTwoScreen() {
+const ExploreScreen = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [trendingPosts, setTrendingPosts] = useState<Post[]>([]);
+  const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const theme = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'MainTabs'>>();
+
+  useEffect(() => {
+    fetchTrendingContent();
+    fetchSuggestedUsers();
+  }, []);
+
+  const fetchTrendingContent = async () => {
+    try {
+      const postsRef = collection(db, 'posts');
+      const q = query(
+        postsRef,
+        where('privacy', '==', 'public'),
+        orderBy('likes', 'desc'),
+        limit(5)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const posts = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Post[];
+      
+      setTrendingPosts(posts);
+    } catch (error) {
+      console.error('Error fetching trending content:', error);
+    }
+  };
+
+  const fetchSuggestedUsers = async () => {
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, limit(10));
+      const querySnapshot = await getDocs(q);
+      
+      const users = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as User[];
+      
+      setSuggestedUsers(users);
+    } catch (error) {
+      console.error('Error fetching suggested users:', error);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    // In a real app, you would implement search logic here
+    // and navigate to search results
+    // @ts-ignore - Search screen navigation
+    navigation.navigate('Search', { query: searchQuery });
+    setIsSearching(false);
+  };
+
+  const navigateToProfile = (userId: string) => {
+    navigation.navigate('UserProfile', { userId });
+  };
+
+  const navigateToPost = (postId: string) => {
+    navigation.navigate('PostDetail', { postId });
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Search Bar */}
+      <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface }]}>
+        <MaterialIcons name="search" size={24} color={theme.colors.onSurfaceVariant} />
+        <TextInput
+          style={[styles.searchInput, { color: theme.colors.onSurface }]}
+          placeholder="Search Chautari"
+          placeholderTextColor={theme.colors.onSurfaceVariant}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={handleSearch}
+          returnKeyType="search"
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-            custom fonts such as this one.
-          </ThemedText>
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={20} color={theme.colors.onSurfaceVariant} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Trending Now */}
+      <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+        Trending Now
+      </Text>
+      <FlatList
+        horizontal
+        data={trendingPosts}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={styles.trendingItem}
+            onPress={() => navigateToPost(item.id)}
+          >
+            {item.media && item.media[0]?.type === 'image' ? (
+              <Image 
+                source={{ uri: item.media[0].url }} 
+                style={styles.trendingImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.trendingImage, { backgroundColor: '#f0f0f0' }]}>
+                <MaterialIcons name="image" size={40} color="#999" />
+              </View>
+            )}
+            <Text 
+              style={styles.trendingText}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {item.content}
+            </Text>
+          </TouchableOpacity>
+        )}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.trendingContainer}
+      />
+
+      {/* Suggested Users */}
+      <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+        People You May Know
+      </Text>
+      <FlatList
+        data={suggestedUsers}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={styles.userItem}
+            onPress={() => navigateToProfile(item.id)}
+          >
+            {item.photoURL ? (
+              <Image 
+                source={{ uri: item.photoURL }} 
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
+                <Text style={styles.avatarText}>
+                  {item.displayName?.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View style={styles.userInfo}>
+              <Text style={[styles.userName, { color: theme.colors.onSurface }]}>
+                {item.displayName}
+              </Text>
+              <Text style={[styles.userUsername, { color: theme.colors.onSurfaceVariant }]}>
+                @{item.username}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.followButton}>
+              <Text style={styles.followButtonText}>Follow</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+        contentContainerStyle={styles.usersContainer}
+      />
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
   },
-  titleContainer: {
+  searchContainer: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    margin: 16,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+    height: 50,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  trendingContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  trendingItem: {
+    width: 200,
+    marginRight: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  trendingImage: {
+    width: '100%',
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  trendingText: {
+    padding: 12,
+    fontSize: 14,
+    color: '#333',
+  },
+  usersContainer: {
+    paddingHorizontal: 16,
+  },
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  userInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  userUsername: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  followButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 15,
+    backgroundColor: '#1a73e8',
+  },
+  followButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
+
+export default ExploreScreen;
